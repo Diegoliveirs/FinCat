@@ -1,0 +1,43 @@
+node_modules/
+.next/
+out/
+coverage/
+data/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local environment and credentials
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa
+id_ed25519
+
+# Local data and diagnostics
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Test and build artifacts
+playwright-report/
+test-results/
+
+# Local tooling and generated analysis
+.agents/
+.claude/
+.impeccable/
+graphify-out/
+
+# Internal project notes
+/PLAN.md
+/PLAN-MELHORIAS.md
+/DESIGN.md
+/CAT-STYLE.md
+/GUIA-DOCKER.md
+/PRODUCT.md

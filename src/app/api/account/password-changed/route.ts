@@ -1,0 +1,2 @@
+import db from "@/lib/db"; import { user } from "@/lib/db/schema"; import { eq } from "drizzle-orm"; import { requireSession, unauthorized } from "@/lib/auth-session";
+export async function POST() { try { const session = await requireSession(true); db.update(user).set({ forcePasswordChange: false }).where(eq(user.id, session.user.id)).run(); return Response.json({ ok: true }); } catch (error) { return unauthorized(error); } }

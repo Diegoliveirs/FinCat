@@ -1,0 +1,16 @@
+node_modules
+.agents
+.claude
+.codex
+.next
+data
+.impeccable
+graphify-out
+playwright-report
+test-results
+drizzle
+package-lock.json
+cf.log
+*.db
+*.db-shm
+*.db-wal
