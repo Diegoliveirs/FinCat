@@ -1,0 +1,45 @@
+services:
+  migrate:
+    image: ${MIGRATION_IMAGE_REF:?set MIGRATION_IMAGE_REF to a GHCR migration image digest}
+    env_file: /opt/fincat/prod/.env.production.local
+    command: ["npm", "run", "db:migrate"]
+    networks: [fincat]
+  app-blue:
+    image: ${IMAGE_REF:?set IMAGE_REF to a GHCR image digest}
+    env_file: /opt/fincat/prod/.env.production.local
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+    networks: [fincat]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+  app-green:
+    image: ${IMAGE_REF:?set IMAGE_REF to a GHCR image digest}
+    env_file: /opt/fincat/prod/.env.production.local
+    ports: ["127.0.0.1:3002:3000"]
+    restart: unless-stopped
+    networks: [fincat]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+networks:
+  fincat:
+    external: true
+    name: fincat

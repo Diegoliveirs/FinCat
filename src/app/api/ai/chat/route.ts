@@ -9,7 +9,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  let session; try { session = await requireSession(); } catch (error) { return unauthorized(error); }
+  let session;
+  try {
+    session = await requireSession();
+  } catch (error) {
+    return unauthorized(error);
+  }
   const body = (await req.json().catch(() => null)) as {
     message?: string;
     history?: AiMessage[];
@@ -26,7 +31,10 @@ export async function POST(req: Request) {
       async start(controller) {
         const send = (value: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(value)}\n\n`));
         send({ type: "agent", agentId, ...agents[agentId] });
-        const working = [...(body?.history ?? []).slice(-8), ...buildContextMessages(message, agentId, session.user.id)];
+        const working = [
+          ...(body?.history ?? []).slice(-8),
+          ...(await buildContextMessages(message, agentId, session.user.id)),
+        ];
         for await (const result of chatStream(working, allAgentTools)) {
           if (result.kind === "text") {
             send({ type: "text", content: result.content });
@@ -41,7 +49,7 @@ export async function POST(req: Request) {
             continue;
           }
           if (result.call.name === "query_finances") {
-            const queryResult = queryFinances(args, session.user.id);
+            const queryResult = await queryFinances(args, session.user.id);
             await completeToolTurn(
               working,
               allAgentTools,
@@ -56,7 +64,7 @@ export async function POST(req: Request) {
             );
             continue;
           }
-          const built = buildProposal(result.call.name, args, agentId, session.user.id);
+          const built = await buildProposal(result.call.name, args, agentId, session.user.id);
           if ("error" in built) send({ type: "insight", level: "warning", content: built.error });
           else send({ type: "proposal", proposal: built.proposal, summary: built.proposal.title });
         }

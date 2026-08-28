@@ -13,8 +13,8 @@ export default async function GoalsPage() {
         </p>
       </div>
       <GoalsManager
-        goals={getGoalSummaries(session.user.id, true).filter((goal) => goal.status !== "archived")}
-        savings={getSavingsOverview(session.user.id)}
+        goals={(await getGoalSummaries(session.user.id, true)).filter((goal) => goal.status !== "archived")}
+        savings={await getSavingsOverview(session.user.id)}
       />
     </div>
   );

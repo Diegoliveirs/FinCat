@@ -46,36 +46,35 @@ export type Overview = {
   diagnosis: { tone: "positive" | "warning" | "danger" | "neutral"; title: string; detail: string; action: string };
 };
 
-export function getOverview(userId: string, month = format(new Date(), "yyyy-MM")): Overview {
+export async function getOverview(userId: string, month = format(new Date(), "yyyy-MM")): Promise<Overview> {
   const [y, m] = month.split("-").map(Number);
   const start = format(new Date(y, m - 1, 1), "yyyy-MM-dd");
   const end = format(new Date(y, m, 0), "yyyy-MM-dd");
 
-  const initialRow = db
+  const [initialRow = { initial: 0 }] = await db
     .select({ initial: sql<number>`COALESCE(SUM(${accounts.initialBalanceCents}), 0)` })
     .from(accounts)
-    .where(eq(accounts.userId, userId))
-    .get() ?? { initial: 0 };
+    .where(eq(accounts.userId, userId));
 
-  const incomeExpenseRow = db
+  const [incomeExpenseRow = { income: 0, expense: 0 }] = await db
     .select({
       income: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
       expense: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
     })
     .from(transactions)
-    .where(eq(transactions.userId, userId))
-    .get() ?? { income: 0, expense: 0 };
+    .where(eq(transactions.userId, userId));
 
-  const monthRow = db
+  const [monthRow = { income: 0, expense: 0 }] = await db
     .select({
       income: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
       expense: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
     })
     .from(transactions)
-    .where(and(eq(transactions.userId, userId), sql`${transactions.date} >= ${start} AND ${transactions.date} <= ${end}`))
-    .get() ?? { income: 0, expense: 0 };
+    .where(
+      and(eq(transactions.userId, userId), sql`${transactions.date} >= ${start} AND ${transactions.date} <= ${end}`),
+    );
 
-  const byCategory: CategoryTotal[] = db
+  const byCategory: CategoryTotal[] = await db
     .select({
       categoryId: categories.id,
       name: categories.name,
@@ -85,10 +84,11 @@ export function getOverview(userId: string, month = format(new Date(), "yyyy-MM"
     })
     .from(transactions)
     .innerJoin(categories, and(eq(categories.id, transactions.categoryId), eq(categories.userId, userId)))
-    .where(and(eq(transactions.userId, userId), sql`${transactions.date} >= ${start} AND ${transactions.date} <= ${end}`))
+    .where(
+      and(eq(transactions.userId, userId), sql`${transactions.date} >= ${start} AND ${transactions.date} <= ${end}`),
+    )
     .groupBy(categories.id)
-    .orderBy(desc(sql`SUM(${transactions.amountCents})`))
-    .all();
+    .orderBy(desc(sql`SUM(${transactions.amountCents})`));
 
   const evolution: EvolutionPoint[] = [];
   for (let i = 5; i >= 0; i--) {
@@ -96,18 +96,17 @@ export function getOverview(userId: string, month = format(new Date(), "yyyy-MM"
     const mm = format(d, "yyyy-MM");
     const s = format(d, "yyyy-MM-dd");
     const e = format(new Date(d.getFullYear(), d.getMonth() + 1, 0), "yyyy-MM-dd");
-    const row = db
+    const [row = { income: 0, expense: 0 }] = await db
       .select({
         income: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
         expense: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
       })
       .from(transactions)
-      .where(and(eq(transactions.userId, userId), sql`${transactions.date} >= ${s} AND ${transactions.date} <= ${e}`))
-      .get() ?? { income: 0, expense: 0 };
+      .where(and(eq(transactions.userId, userId), sql`${transactions.date} >= ${s} AND ${transactions.date} <= ${e}`));
     evolution.push({ month: format(d, "MMM/yy"), income: row.income, expense: row.expense });
   }
 
-  const budgetRows = db
+  const budgetRows = await db
     .select({
       categoryId: budgets.categoryId,
       name: categories.name,
@@ -122,8 +121,7 @@ export function getOverview(userId: string, month = format(new Date(), "yyyy-MM"
     })
     .from(budgets)
     .innerJoin(categories, and(eq(categories.id, budgets.categoryId), eq(categories.userId, userId)))
-    .where(and(eq(budgets.userId, userId), sql`${budgets.month} = ${month}`))
-    .all();
+    .where(and(eq(budgets.userId, userId), sql`${budgets.month} = ${month}`));
 
   const budgetProgress: BudgetProgress[] = budgetRows.map((b) => {
     const percent = b.limitCents > 0 ? (b.spentCents / b.limitCents) * 100 : 0;

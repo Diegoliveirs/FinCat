@@ -8,8 +8,8 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { formatBRL } from "@/lib/money";
 import type { getGoalSummaries, getSavingsOverview } from "@/lib/goal-service";
 import { toast } from "sonner";
-type Goal = ReturnType<typeof getGoalSummaries>[number];
-type Savings = ReturnType<typeof getSavingsOverview>;
+type Goal = Awaited<ReturnType<typeof getGoalSummaries>>[number];
+type Savings = Awaited<ReturnType<typeof getSavingsOverview>>;
 
 export function GoalsManager({ goals, savings }: { goals: Goal[]; savings: Savings }) {
   const router = useRouter();

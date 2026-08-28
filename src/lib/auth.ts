@@ -13,7 +13,7 @@ export const auth = betterAuth({
   appName: "FinCat",
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   secret: secret ?? "development-only-secret-change-before-production-32-chars",
-  database: drizzleAdapter(db, { provider: "sqlite", schema }),
+  database: drizzleAdapter(db, { provider: "pg", schema }),
   emailAndPassword: { enabled: true, minPasswordLength: 8, autoSignIn: true },
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
   advanced: {
@@ -21,7 +21,10 @@ export const auth = betterAuth({
     defaultCookieAttributes: { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" },
   },
   rateLimit: {
-    enabled: true, storage: "database", window: 60, max: 100,
+    enabled: true,
+    storage: "database",
+    window: 60,
+    max: 100,
     customRules: {
       "/sign-in/username": { window: 60 * 15, max: 5 },
       "/sign-up/email": { window: 60 * 60, max: 5 },
@@ -34,8 +37,16 @@ export const auth = betterAuth({
   },
   databaseHooks: { user: { create: { after: async (created) => initializeUserData(created.id) } } },
   plugins: [
-    username({ minUsernameLength: 3, maxUsernameLength: 32, usernameValidator: (value) => /^[a-zA-Z0-9._-]+$/.test(value) }),
-    admin({ defaultRole: "user", adminRoles: ["admin"], bannedUserMessage: "Seu acesso está bloqueado. Fale com o administrador." }),
+    username({
+      minUsernameLength: 3,
+      maxUsernameLength: 32,
+      usernameValidator: (value) => /^[a-zA-Z0-9._-]+$/.test(value),
+    }),
+    admin({
+      defaultRole: "user",
+      adminRoles: ["admin"],
+      bannedUserMessage: "Seu acesso está bloqueado. Fale com o administrador.",
+    }),
     nextCookies(),
   ],
 });
@@ -43,16 +54,24 @@ export const auth = betterAuth({
 let bootstrapPromise: Promise<void> | undefined;
 export function ensureOwner() {
   bootstrapPromise ??= (async () => {
-    const existing = db.select({ id: schema.user.id }).from(schema.user).limit(1).get();
+    const [existing] = await db.select({ id: schema.user.id }).from(schema.user).limit(1);
     if (existing) return;
     const name = process.env.FINCAT_OWNER_NAME;
     const ownerUsername = process.env.FINCAT_OWNER_USERNAME;
     const password = process.env.FINCAT_OWNER_PASSWORD;
-    if (!name || !ownerUsername || !password) throw new Error("Primeiro boot incompleto: configure FINCAT_OWNER_NAME, FINCAT_OWNER_USERNAME e FINCAT_OWNER_PASSWORD.");
+    if (!name || !ownerUsername || !password)
+      throw new Error(
+        "Primeiro boot incompleto: configure FINCAT_OWNER_NAME, FINCAT_OWNER_USERNAME e FINCAT_OWNER_PASSWORD.",
+      );
     const normalized = ownerUsername.trim().toLowerCase();
-    const result = await auth.api.signUpEmail({ body: { name, username: normalized, email: `${normalized}@users.fincat.invalid`, password } });
+    const result = await auth.api.signUpEmail({
+      body: { name, username: normalized, email: `${normalized}@users.fincat.invalid`, password },
+    });
     if (!result.user?.id) throw new Error("Não foi possível criar o dono inicial.");
-    db.update(schema.user).set({ role: "admin" }).where((await import("drizzle-orm")).eq(schema.user.id, result.user.id)).run();
+    await db
+      .update(schema.user)
+      .set({ role: "admin" })
+      .where((await import("drizzle-orm")).eq(schema.user.id, result.user.id));
     console.info(`[fincat] Dono inicial criado: ${normalized}`);
   })();
   return bootstrapPromise;

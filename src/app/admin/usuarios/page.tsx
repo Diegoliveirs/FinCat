@@ -1,3 +1,18 @@
-import { requirePageSession } from "@/lib/auth-session"; import { redirect } from "next/navigation"; import { UsersAdmin } from "@/components/admin/users-admin";
+import { requirePageSession } from "@/lib/auth-session";
+import { redirect } from "next/navigation";
+import { UsersAdmin } from "@/components/admin/users-admin";
 export const dynamic = "force-dynamic";
-export default async function UsersPage() { const session = await requirePageSession(); if (session.user.role !== "admin") redirect("/"); return <section><p className="text-brand text-sm font-semibold">Controle de acesso</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Usuários</h1><p className="text-muted mt-3 max-w-2xl">Gerencie somente acesso e sessões. O painel não permite visualizar dados financeiros de outra pessoa.</p><UsersAdmin currentUserId={session.user.id} /></section>; }
+export default async function UsersPage() {
+  const session = await requirePageSession();
+  if (session.user.role !== "admin") redirect("/");
+  return (
+    <section>
+      <p className="text-brand text-sm font-semibold">Controle de acesso</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight">Usuários</h1>
+      <p className="text-muted mt-3 max-w-2xl">
+        Gerencie somente acesso e sessões. O painel não permite visualizar dados financeiros de outra pessoa.
+      </p>
+      <UsersAdmin currentUserId={session.user.id} />
+    </section>
+  );
+}

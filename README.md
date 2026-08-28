@@ -16,7 +16,7 @@ Aplicação web de finanças pessoais para acompanhar contas, lançamentos, orç
 
 - Next.js 15, React 19 e TypeScript
 - Tailwind CSS 4
-- SQLite, Drizzle ORM e Drizzle Kit
+- PostgreSQL, Drizzle ORM e Drizzle Kit
 - Better Auth
 - Zod, Recharts e Playwright
 - Endpoint de IA compatível com `AI_BASE_URL`
@@ -25,7 +25,8 @@ Aplicação web de finanças pessoais para acompanhar contas, lançamentos, orç
 
 ### Pré-requisitos
 
-- Node.js 20 ou superior
+- Node.js 22 ou superior
+- PostgreSQL 16 (ou Docker para desenvolvimento local)
 - npm
 
 ### Instalação
@@ -36,7 +37,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000). Em desenvolvimento, o banco SQLite e as migrations são inicializados automaticamente na primeira execução.
+Abra [http://localhost:3000](http://localhost:3000). Em desenvolvimento, configure um PostgreSQL em `DATABASE_URL` e execute a migration antes de iniciar a aplicação.
 
 Para gerar ou aplicar migrations manualmente:
 
@@ -49,18 +50,18 @@ npm run db:migrate
 
 Use `.env.example` como referência. Nunca publique o arquivo `.env`.
 
-| Variável                | Descrição                                               |
-| ----------------------- | ------------------------------------------------------- |
-| `DATABASE_URL`          | Caminho do banco SQLite. O padrão é `./data/fincat.db`. |
-| `BETTER_AUTH_SECRET`    | Segredo da autenticação. Em produção, é obrigatório.    |
-| `BETTER_AUTH_URL`       | URL pública da aplicação.                               |
-| `FINCAT_OWNER_NAME`     | Nome do primeiro administrador criado no boot inicial.  |
-| `FINCAT_OWNER_USERNAME` | Usuário do primeiro administrador.                      |
-| `FINCAT_OWNER_PASSWORD` | Senha inicial do administrador. Use uma senha forte.    |
-| `AI_BASE_URL`           | URL base do provedor de IA compatível. Opcional.        |
-| `AI_API_KEY`            | Chave do provedor de IA. Opcional.                      |
-| `AI_MODEL`              | Modelo de IA a utilizar. Opcional.                      |
-| `AI_TIMEOUT_MS`         | Tempo máximo da chamada de IA em milissegundos.         |
+| Variável                | Descrição                                              |
+| ----------------------- | ------------------------------------------------------ |
+| `DATABASE_URL`          | URL de conexão PostgreSQL.                             |
+| `BETTER_AUTH_SECRET`    | Segredo da autenticação. Em produção, é obrigatório.   |
+| `BETTER_AUTH_URL`       | URL pública da aplicação.                              |
+| `FINCAT_OWNER_NAME`     | Nome do primeiro administrador criado no boot inicial. |
+| `FINCAT_OWNER_USERNAME` | Usuário do primeiro administrador.                     |
+| `FINCAT_OWNER_PASSWORD` | Senha inicial do administrador. Use uma senha forte.   |
+| `AI_BASE_URL`           | URL base do provedor de IA compatível. Opcional.       |
+| `AI_API_KEY`            | Chave do provedor de IA. Opcional.                     |
+| `AI_MODEL`              | Modelo de IA a utilizar. Opcional.                     |
+| `AI_TIMEOUT_MS`         | Tempo máximo da chamada de IA em milissegundos.        |
 
 Gere um segredo seguro, por exemplo, com `openssl rand -base64 32`.
 
@@ -75,6 +76,12 @@ npm run test:e2e      # testes end-to-end
 npm run format:check  # verifica a formatação
 ```
 
+`npm run test:e2e` exige `E2E_DATABASE_URL` apontando para um PostgreSQL exclusivo de testes.
+
 ## Segurança
 
 O repositório ignora variáveis de ambiente, bancos SQLite, logs, chaves/certificados e artefatos locais de ferramentas. Antes de publicar, mantenha `.env` e qualquer arquivo de chave exclusivamente no ambiente de execução.
+
+## Deploy
+
+O processo de staging, produção blue-green e configuração inicial da EC2 está em [docs/CI-CD.md](docs/CI-CD.md).

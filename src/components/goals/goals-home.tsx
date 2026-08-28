@@ -12,7 +12,7 @@ import { formatBRL } from "@/lib/money";
 import type { getGoalSummaries } from "@/lib/goal-service";
 import { toast } from "sonner";
 
-type Goal = ReturnType<typeof getGoalSummaries>[number];
+type Goal = Awaited<ReturnType<typeof getGoalSummaries>>[number];
 export function GoalsHome({ goals }: { goals: Goal[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Goal | null>(null);

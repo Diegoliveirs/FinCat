@@ -1,0 +1,21 @@
+name: Deploy staging
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [develop]
+concurrency: { group: staging-deploy, cancel-in-progress: false }
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: [self-hosted, fincat-deploy]
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Deploy immutable image
+        env:
+          IMAGE_REF: ghcr.io/diegoliveirs/fincat:${{ github.event.workflow_run.head_sha }}
+          MIGRATION_IMAGE_REF: ghcr.io/diegoliveirs/fincat-migrations:${{ github.event.workflow_run.head_sha }}
+        run: bash ./infra/bin/deploy-staging "$IMAGE_REF" "$MIGRATION_IMAGE_REF"

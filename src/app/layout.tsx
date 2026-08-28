@@ -19,7 +19,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="min-h-screen">
-        {session ? <div className="flex min-h-screen"><Sidebar user={session.user} /><main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 md:pb-8 lg:ml-64 lg:pl-8 xl:pr-[23rem]"><div className="mx-auto w-full max-w-5xl">{children}</div></main><CatPanel /></div> : <main>{children}</main>}
+        {session ? (
+          <div className="flex min-h-screen">
+            <Sidebar user={session.user} />
+            <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-8 md:pb-8 lg:ml-64 lg:pl-8 xl:pr-[23rem]">
+              <div className="mx-auto w-full max-w-5xl">{children}</div>
+            </main>
+            <CatPanel />
+          </div>
+        ) : (
+          <main>{children}</main>
+        )}
         {session ? <BottomNav isAdmin={session.user.role === "admin"} /> : null}
         <Toaster
           theme="dark"
