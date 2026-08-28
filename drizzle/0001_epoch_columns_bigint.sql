@@ -1,4 +1,4 @@
-ALTER TABLE "rate_limits" ALTER COLUMN "last_request" TYPE bigint;
+ALTER TABLE "rate_limit" ALTER COLUMN "last_request" TYPE bigint;
 --> statement-breakpoint
 ALTER TABLE "accounts" ALTER COLUMN "created_at" TYPE bigint;
 --> statement-breakpoint
