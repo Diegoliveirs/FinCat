@@ -7,6 +7,8 @@ import { CatPanel } from "@/components/ai/cat-panel";
 import "./globals.css";
 import { getSession } from "@/lib/auth-session";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "FinCat — finanças que cabem no bolso",
   description: "Controle pessoal de finanças com um gato de assistente.",
