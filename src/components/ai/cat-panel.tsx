@@ -19,6 +19,11 @@ import { useRouter } from "next/navigation";
 
 type Msg = { id: string; role: "user" | "cat"; content: string; agentId?: AgentId } | ProposalChatItem;
 
+const financialTypeLabel: Record<string, string> = {
+  expense: "Despesa",
+  income: "Receita",
+};
+
 function proposalRows(proposal: ProposalEnvelope) {
   const data = proposal.data as Record<string, unknown>;
   const money = (value: unknown) =>
@@ -63,9 +68,11 @@ function proposalRows(proposal: ProposalEnvelope) {
         labels[key] ?? key,
         /Cents$/.test(key)
           ? money(value)
-          : /Date$|^date$|savedAt/.test(key)
-            ? String(value).split("-").reverse().join("/")
-            : String(value),
+          : (key === "type" || key === "kind") && typeof value === "string"
+            ? (financialTypeLabel[value] ?? value)
+            : /Date$|^date$|savedAt/.test(key)
+              ? String(value).split("-").reverse().join("/")
+              : String(value),
       ]),
   ];
 }
