@@ -8,6 +8,10 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 FROM deps AS builder
+ENV NODE_ENV=production \
+    DATABASE_URL=postgresql://fincat_build:fincat_build@127.0.0.1:5432/fincat_build \
+    BETTER_AUTH_SECRET=build-only-placeholder-not-used-at-runtime \
+    BETTER_AUTH_URL=http://127.0.0.1:3000
 COPY . .
 RUN npm run build
 
