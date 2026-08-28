@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, ArrowLeftRight, Target, Wallet, Tags, Flag, MoreHorizontal, X, Users, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  ArrowLeftRight,
+  Target,
+  Wallet,
+  Tags,
+  Flag,
+  MoreHorizontal,
+  X,
+  Users,
+  LogOut,
+} from "lucide-react";
 import { CatMark } from "@/components/ui/cat-mood";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -39,7 +50,8 @@ function Brand() {
 
 export function Sidebar({ user }: { user: { name: string; username?: string | null; role?: string | null } }) {
   const router = useRouter();
-  const visibleItems = user.role === "admin" ? [...items, { href: "/admin/usuarios", label: "Usuários", icon: Users }] : items;
+  const visibleItems =
+    user.role === "admin" ? [...items, { href: "/admin/usuarios", label: "Usuários", icon: Users }] : items;
   return (
     <aside className="bg-surface fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/10 px-4 py-6 lg:flex">
       <Brand />
@@ -61,7 +73,23 @@ export function Sidebar({ user }: { user: { name: string; username?: string | nu
         })}
       </nav>
       <div className="mt-auto px-2">
-        <div className="mb-3 flex items-center justify-between border-t border-white/10 pt-4"><div className="min-w-0"><div className="truncate text-sm font-semibold">{user.name}</div><div className="text-muted truncate text-xs">@{user.username}</div></div><button className="text-muted hover:text-ink rounded-lg p-2" aria-label="Sair" onClick={async () => { await authClient.signOut(); router.push("/login"); router.refresh(); }}><LogOut className="size-4" /></button></div>
+        <div className="mb-3 flex items-center justify-between border-t border-white/10 pt-4">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">{user.name}</div>
+            <div className="text-muted truncate text-xs">@{user.username}</div>
+          </div>
+          <button
+            className="text-muted hover:text-ink rounded-lg p-2"
+            aria-label="Sair"
+            onClick={async () => {
+              await authClient.signOut();
+              router.push("/login");
+              router.refresh();
+            }}
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
         <div className="bg-bg/60 rounded-xl border border-white/10 p-3">
           <div className="text-muted text-[11px]">Sugestão</div>
           <div className="text-muted mt-1 text-xs">Pergunta ao gato: "gastei 45 no mercado ontem"</div>
@@ -75,7 +103,10 @@ export function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const pathname = usePathname();
   const primaryItems = items.slice(0, 4);
-  const secondaryItems = [...items.slice(4), ...(isAdmin ? [{ href: "/admin/usuarios", label: "Usuários", icon: Users }] : [])];
+  const secondaryItems = [
+    ...items.slice(4),
+    ...(isAdmin ? [{ href: "/admin/usuarios", label: "Usuários", icon: Users }] : []),
+  ];
   const secondaryActive = secondaryItems.some(({ href }) => pathname === href || pathname.startsWith(`${href}/`));
 
   return (

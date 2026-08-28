@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16.8
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - fincat-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports: []
+    networks: [fincat]
+
+volumes:
+  fincat-postgres-data:
+    name: fincat-postgres-data
+
+networks:
+  fincat:
+    external: true
+    name: fincat

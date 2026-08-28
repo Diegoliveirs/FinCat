@@ -9,8 +9,16 @@ export async function getSession() {
 
 export async function requireSession(allowPasswordChange = false) {
   const session = await getSession();
-  if (!session) throw new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { "content-type": "application/json" } });
-  if (session.user.forcePasswordChange && !allowPasswordChange) throw new Response(JSON.stringify({ error: "Troca de senha obrigatória" }), { status: 428, headers: { "content-type": "application/json" } });
+  if (!session)
+    throw new Response(JSON.stringify({ error: "Não autenticado" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+  if (session.user.forcePasswordChange && !allowPasswordChange)
+    throw new Response(JSON.stringify({ error: "Troca de senha obrigatória" }), {
+      status: 428,
+      headers: { "content-type": "application/json" },
+    });
   return session;
 }
 

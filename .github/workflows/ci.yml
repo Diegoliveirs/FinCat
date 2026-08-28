@@ -1,0 +1,71 @@
+name: CI
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+permissions:
+  contents: read
+  packages: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.8
+        env:
+          POSTGRES_USER: fincat
+          POSTGRES_PASSWORD: fincat
+          POSTGRES_DB: fincat_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U fincat -d fincat_test" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://fincat:fincat@localhost:5432/fincat_test
+      BETTER_AUTH_SECRET: ci-only-secret-with-at-least-32-characters
+      BETTER_AUTH_URL: http://127.0.0.1:3201
+      FINCAT_OWNER_NAME: CI Owner
+      FINCAT_OWNER_USERNAME: ci_owner
+      FINCAT_OWNER_PASSWORD: CI-Owner-Password-123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run format:check
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run db:migrate
+      - run: npm run build
+      - name: Smoke test with PostgreSQL
+        run: |
+          npm run start &
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+  publish-staging-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: ghcr.io/diegoliveirs/fincat:${{ github.sha }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrations
+          push: true
+          tags: ghcr.io/diegoliveirs/fincat-migrations:${{ github.sha }}

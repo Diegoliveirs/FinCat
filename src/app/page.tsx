@@ -15,8 +15,8 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await requirePageSession();
-  const data = getOverview(session.user.id);
-  const goals = getGoalSummaries(session.user.id).filter((goal) => goal.status === "active");
+  const data = await getOverview(session.user.id);
+  const goals = (await getGoalSummaries(session.user.id)).filter((goal) => goal.status === "active");
   return (
     <div className="space-y-10">
       <section className="dashboard-intro">

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+image_ref=${1:?Informe a imagem runtime.}
+migration_image_ref=${2:?Informe a imagem de migrations.}
+root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+compose_file="$root_dir/infra/compose.production.yaml"
+state_dir=/opt/fincat/deploy/state
+state_file="$state_dir/production-color"
+upstream_file=/etc/nginx/conf.d/fincat-upstream.conf
+external_health_url=${FINCAT_PRODUCTION_HEALTH_URL:-https://fincat-app.duckdns.org/api/health}
+
+resolve_digest() {
+  docker pull "$1" >&2
+  docker image inspect --format '{{index .RepoDigests 0}}' "$1"
+}
+
+runtime_digest=$(resolve_digest "$image_ref")
+migration_digest=$(resolve_digest "$migration_image_ref")
+mkdir -p "$state_dir"
+active_color=$(test -f "$state_file" && tr -d '\n' < "$state_file" || true)
+
+case "$active_color" in
+  blue) next_color=green; next_service=app-green; next_port=3002; old_service=app-blue ;;
+  green) next_color=blue; next_service=app-blue; next_port=3000; old_service=app-green ;;
+  *) next_color=blue; next_service=app-blue; next_port=3000; old_service= ;;
+esac
+
+IMAGE_REF="$runtime_digest" MIGRATION_IMAGE_REF="$migration_digest" \
+  docker compose --project-name fincat-prod -f "$compose_file" run --rm migrate
+IMAGE_REF="$runtime_digest" MIGRATION_IMAGE_REF="$migration_digest" \
+  docker compose --project-name fincat-prod -f "$compose_file" run --rm migrate npm run db:bootstrap
+
+IMAGE_REF="$runtime_digest" MIGRATION_IMAGE_REF="$migration_digest" \
+  docker compose --project-name fincat-prod -f "$compose_file" up -d --no-deps --force-recreate "$next_service"
+
+for _ in {1..30}; do
+  if curl --fail --silent --show-error --max-time 3 "http://127.0.0.1:${next_port}/api/health" >/dev/null; then
+    break
+  fi
+  sleep 2
+done
+
+if ! curl --fail --silent --show-error --max-time 3 "http://127.0.0.1:${next_port}/api/health" >/dev/null; then
+  docker compose --project-name fincat-prod -f "$compose_file" logs --tail=100 "$next_service" >&2
+  exit 1
+fi
+
+tmp_upstream=$(mktemp)
+backup_upstream=$(mktemp)
+trap 'rm -f "$tmp_upstream" "$backup_upstream"' EXIT
+printf 'upstream fincat_app { server 127.0.0.1:%s; keepalive 32; }\n' "$next_port" > "$tmp_upstream"
+if sudo test -f "$upstream_file"; then sudo cp "$upstream_file" "$backup_upstream"; else : > "$backup_upstream"; fi
+sudo install -m 0644 "$tmp_upstream" "$upstream_file"
+if ! sudo nginx -t; then
+  if test -s "$backup_upstream"; then sudo install -m 0644 "$backup_upstream" "$upstream_file"; else sudo rm -f "$upstream_file"; fi
+  exit 1
+fi
+sudo systemctl reload nginx
+
+if ! curl --fail --silent --show-error --max-time 10 "$external_health_url" >/dev/null; then
+  if test -s "$backup_upstream"; then sudo install -m 0644 "$backup_upstream" "$upstream_file"; else sudo rm -f "$upstream_file"; fi
+  sudo nginx -t && sudo systemctl reload nginx
+  exit 1
+fi
+
+printf '%s\n' "$next_color" > "$state_file"
+if test -n "$old_service"; then
+  IMAGE_REF="$runtime_digest" MIGRATION_IMAGE_REF="$migration_digest" \
+    docker compose --project-name fincat-prod -f "$compose_file" stop "$old_service"
+fi
+printf 'Produção ativa em %s com %s\n' "$next_color" "$runtime_digest"

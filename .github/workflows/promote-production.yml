@@ -1,0 +1,20 @@
+name: Promote production
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+concurrency: { group: production-deploy, cancel-in-progress: false }
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, fincat-deploy]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+      - name: Promote the staged artifact
+        env:
+          IMAGE_REF: ghcr.io/diegoliveirs/fincat:${{ github.event.pull_request.head.sha }}
+          MIGRATION_IMAGE_REF: ghcr.io/diegoliveirs/fincat-migrations:${{ github.event.pull_request.head.sha }}
+        run: bash ./infra/bin/deploy-production "$IMAGE_REF" "$MIGRATION_IMAGE_REF"

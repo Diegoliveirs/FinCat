@@ -1,35 +1,18 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import fs from "node:fs";
-import path from "node:path";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
-const globalForDb = globalThis as unknown as { sqlite?: Database.Database; db?: ReturnType<typeof init> };
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL é obrigatório.");
 
-function getSqlite(): Database.Database {
-  if (globalForDb.sqlite) return globalForDb.sqlite;
-  const url = process.env.DATABASE_URL ?? "./data/fincat.db";
-  const dir = path.dirname(path.resolve(url));
-  fs.mkdirSync(dir, { recursive: true });
-  const sqlite = new Database(url);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  globalForDb.sqlite = sqlite;
-  return sqlite;
+const globalForDb = globalThis as unknown as { pool?: Pool; db?: ReturnType<typeof createDb> };
+
+export const pool = globalForDb.pool ?? (globalForDb.pool = new Pool({ connectionString, max: 10 }));
+export type Db = ReturnType<typeof createDb>;
+
+export function createDb() {
+  return drizzle(pool, { schema });
 }
 
-export type Db = ReturnType<typeof init>;
-
-export function init() {
-  const sqlite = getSqlite();
-  const db = drizzle(sqlite, { schema });
-  if (process.env.NEXT_PHASE !== "phase-production-build") {
-    migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
-  }
-  return db;
-}
-
-const db = globalForDb.db ?? (globalForDb.db = init());
-
+const db = globalForDb.db ?? (globalForDb.db = createDb());
 export default db;

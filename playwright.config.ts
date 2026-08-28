@@ -1,8 +1,4 @@
-import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-
-const databaseUrl = path.join(".impeccable", "e2e", `fincat-${Date.now()}.db`);
-process.env.FINCAT_E2E_DATABASE = databaseUrl;
 
 export default defineConfig({
   testDir: "./e2e",

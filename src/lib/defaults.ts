@@ -12,9 +12,12 @@ export const DEFAULT_CATEGORIES = [
   { name: "Outros", kind: "income" as const, color: "#A3BFFF", sortOrder: 2 },
 ];
 
-export function initializeUserData(userId: string) {
-  db.transaction((tx) => {
-    tx.insert(categories).values(DEFAULT_CATEGORIES.map((item) => ({ ...item, userId }))).onConflictDoNothing().run();
-    tx.insert(financialProfile).values({ userId, updatedAt: Date.now() }).onConflictDoNothing().run();
+export async function initializeUserData(userId: string) {
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(categories)
+      .values(DEFAULT_CATEGORIES.map((item) => ({ ...item, userId })))
+      .onConflictDoNothing();
+    await tx.insert(financialProfile).values({ userId, updatedAt: Date.now() }).onConflictDoNothing();
   });
 }

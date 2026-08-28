@@ -21,40 +21,54 @@ export function getSystemPrompt(agentId: AgentId = "siamesinho"): string {
   ].join("\n");
 }
 
-export function buildContextMessages(userMessage: string, agentId: AgentId = "siamesinho", userId: string): AiMessage[] {
+export async function buildContextMessages(
+  userMessage: string,
+  agentId: AgentId = "siamesinho",
+  userId: string,
+): Promise<AiMessage[]> {
   const today = new Date();
   const month = format(today, "yyyy-MM");
   const start = format(today, "yyyy-MM-01");
   const end = format(today, "yyyy-MM") + "-31";
 
-  const initialRow = db
-    .select({ initial: sql<number>`COALESCE(SUM(${accounts.initialBalanceCents}), 0)` })
+  const [initialRow] = await db
+    .select({ initial: sql<number>`COALESCE(SUM(${accounts.initialBalanceCents}), 0)`.as("initial") })
     .from(accounts)
-    .where(eq(accounts.userId, userId))
-    .get() ?? { initial: 0 };
+    .where(eq(accounts.userId, userId));
 
-  const incomeExpenseRow = db
+  const [incomeExpenseRow] = await db
     .select({
-      income: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
-      expense: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountCents} ELSE 0 END), 0)`,
+      income:
+        sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountCents} ELSE 0 END), 0)`.as(
+          "income",
+        ),
+      expense:
+        sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountCents} ELSE 0 END), 0)`.as(
+          "expense",
+        ),
     })
     .from(transactions)
-    .where(eq(transactions.userId, userId))
-    .get() ?? { income: 0, expense: 0 };
+    .where(eq(transactions.userId, userId));
 
-  const monthSpent = db
+  const [monthSpent] = await db
     .select({
-      total: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)`,
+      total: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)`.as("total"),
     })
     .from(transactions)
     .where(
-      and(eq(transactions.userId, userId), sql`${transactions.type} = 'expense' AND ${transactions.date} >= ${start} AND ${transactions.date} <= ${end}`),
-    )
-    .get() ?? { total: 0 };
+      and(
+        eq(transactions.userId, userId),
+        sql`${transactions.type} = 'expense' AND ${transactions.date} >= ${start} AND ${transactions.date} <= ${end}`,
+      ),
+    );
 
-  const allAccounts = db.select().from(accounts).where(eq(accounts.userId, userId)).all();
-  const allCategories = db.select().from(categories).where(eq(categories.userId, userId)).orderBy(desc(categories.sortOrder)).all();
-  const recentTx = db
+  const allAccounts = await db.select().from(accounts).where(eq(accounts.userId, userId));
+  const allCategories = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.userId, userId))
+    .orderBy(desc(categories.sortOrder));
+  const recentTx = await db
     .select({
       id: transactions.id,
       description: transactions.description,
@@ -69,10 +83,9 @@ export function buildContextMessages(userMessage: string, agentId: AgentId = "si
     .innerJoin(categories, and(eq(categories.id, transactions.categoryId), eq(categories.userId, userId)))
     .where(eq(transactions.userId, userId))
     .orderBy(desc(transactions.date))
-    .limit(10)
-    .all();
+    .limit(10);
 
-  const budgetsRow = db
+  const budgetsRow = await db
     .select({
       name: categories.name,
       limitCents: budgets.limitCents,
@@ -81,21 +94,20 @@ export function buildContextMessages(userMessage: string, agentId: AgentId = "si
         WHERE ${transactions.categoryId} = ${budgets.categoryId}
           AND ${transactions.userId} = ${userId} AND ${transactions.type} = 'expense'
           AND ${transactions.date} >= ${start} AND ${transactions.date} <= ${end}
-      ), 0)`,
+      ), 0)`.as("spentCents"),
     })
     .from(budgets)
     .innerJoin(categories, and(eq(categories.id, budgets.categoryId), eq(categories.userId, userId)))
-    .where(and(eq(budgets.userId, userId), sql`${budgets.month} = ${month}`))
-    .all();
+    .where(and(eq(budgets.userId, userId), sql`${budgets.month} = ${month}`));
 
-  const balanceCents = initialRow.initial + incomeExpenseRow.income - incomeExpenseRow.expense;
-  const goals = getGoalSummaries(userId).filter((goal) => goal.status === "active");
-  const savings = getSavingsOverview(userId);
+  const balanceCents = (initialRow?.initial ?? 0) + (incomeExpenseRow?.income ?? 0) - (incomeExpenseRow?.expense ?? 0);
+  const goals = (await getGoalSummaries(userId)).filter((goal) => goal.status === "active");
+  const savings = await getSavingsOverview(userId);
 
   const contextLines = [
     `DATA HOJE: ${format(today, "dd/MM/yyyy")} (mes atual: ${month})`,
     `SALDO TOTAL: ${formatBRL(balanceCents)}`,
-    `GASTO DO MES: ${formatBRL(monthSpent.total)}`,
+    `GASTO DO MES: ${formatBRL(monthSpent?.total ?? 0)}`,
     "",
     "CONTAS:",
     ...allAccounts.map((a) => `- id=${a.id} ${a.name} (${a.type}) saldo inicial ${formatBRL(a.initialBalanceCents)}`),
