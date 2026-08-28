@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   foreignKey,
   index,
@@ -12,7 +13,9 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-const epoch = (name: string) => integer(name);
+// Timestamps in the app are Unix milliseconds (`Date.now()`), which exceed the
+// PostgreSQL `integer` limit. Keeping number mode avoids BigInt changes in APIs.
+const epoch = (name: string) => bigint(name, { mode: "number" });
 const ownedId = (name: string) => serial(name).primaryKey();
 
 export const user = pgTable("user", {

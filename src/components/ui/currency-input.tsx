@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { centsToInput, inputToCents } from "@/lib/money";
+import { useEffect, useRef, useState } from "react";
+import { centsToInput, inputToCents, normalizeCurrencyInput } from "@/lib/money";
 
 type Props = {
   value: number;
@@ -13,8 +13,13 @@ type Props = {
 
 export function CurrencyInput({ value, onChange, className = "", placeholder = "0,00", ariaLabel }: Props) {
   const [text, setText] = useState(centsToInput(value));
+  const lastEmittedCents = useRef<number | null>(null);
 
   useEffect(() => {
+    if (lastEmittedCents.current === value) {
+      lastEmittedCents.current = null;
+      return;
+    }
     setText(centsToInput(value));
   }, [value]);
 
@@ -24,16 +29,21 @@ export function CurrencyInput({ value, onChange, className = "", placeholder = "
         R$
       </span>
       <input
-        inputMode="numeric"
-        aria-label={ariaLabel}
+        inputMode="decimal"
+        aria-label={ariaLabel ?? "Valor em reais"}
         value={text}
         placeholder={placeholder}
         onChange={(e) => {
-          const next = e.target.value.replace(/[^\d,]/g, "").replace(/\D{2,}/g, "");
+          const next = normalizeCurrencyInput(e.target.value);
           setText(next);
-          onChange(inputToCents(next));
+          const cents = inputToCents(next);
+          lastEmittedCents.current = cents;
+          onChange(cents);
         }}
-        onFocus={(e) => e.target.select()}
+        onFocus={(e) => {
+          if (value === 0) e.target.select();
+        }}
+        onBlur={() => setText(centsToInput(inputToCents(text)))}
         className={`bg-bg/60 text-ink focus:border-brand/60 w-full rounded-xl border border-white/10 py-2.5 pr-3.5 pl-10 font-mono text-sm transition-colors outline-none ${className}`}
       />
     </div>

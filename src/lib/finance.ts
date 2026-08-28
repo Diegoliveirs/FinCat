@@ -69,7 +69,7 @@ export function evaluatePurchase(input: PurchaseInput) {
     monthlyImpact > input.currentMonthlySurplusCents;
   const attention =
     !warning &&
-    (commitmentPercent == null ||
+    ((commitmentPercent == null && monthlyImpact > 0) ||
       input.incomeStability === "variable" ||
       remainingCash < input.desiredReserveCents * 1.2);
   return {

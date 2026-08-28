@@ -20,7 +20,7 @@ import { isDestructive, type ProposalEnvelope } from "@/lib/ai/proposals";
 type BuildResult = { proposal: ProposalEnvelope } | { error: string };
 
 async function recordFor(kind: ProposalInput["kind"], data: Record<string, unknown>, userId: string) {
-  if (kind.startsWith("transaction_") || kind === "reclassification") {
+  if (kind === "transaction_update" || kind === "transaction_delete" || kind === "reclassification") {
     const [record] = await db
       .select()
       .from(transactions)
@@ -28,7 +28,7 @@ async function recordFor(kind: ProposalInput["kind"], data: Record<string, unkno
       .limit(1);
     return record ?? null;
   }
-  if (kind.startsWith("account_")) {
+  if (kind === "account_update" || kind === "account_delete") {
     const [record] = await db
       .select()
       .from(accounts)
@@ -36,7 +36,7 @@ async function recordFor(kind: ProposalInput["kind"], data: Record<string, unkno
       .limit(1);
     return record ?? null;
   }
-  if (kind.startsWith("category_")) {
+  if (kind === "category_update" || kind === "category_delete") {
     const [record] = await db
       .select()
       .from(categories)
@@ -53,7 +53,7 @@ async function recordFor(kind: ProposalInput["kind"], data: Record<string, unkno
       .limit(1);
     return record ?? null;
   }
-  if (kind.startsWith("goal_")) {
+  if (kind === "goal_update" || kind === "goal_archive") {
     const [record] = await db
       .select()
       .from(financialGoals)
