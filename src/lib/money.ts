@@ -18,6 +18,13 @@ export function inputToCents(input: string): number {
   return Math.round(value * 100);
 }
 
+export function normalizeCurrencyInput(input: string): string {
+  const sanitized = input.replace(/[^\d,]/g, "");
+  const [whole = "", ...decimalParts] = sanitized.split(",");
+  if (decimalParts.length === 0) return whole;
+  return `${whole},${decimalParts.join("").slice(0, 2)}`;
+}
+
 export function signColor(cents: number): string {
   if (cents > 0) return "var(--brand)";
   if (cents < 0) return "var(--danger)";
